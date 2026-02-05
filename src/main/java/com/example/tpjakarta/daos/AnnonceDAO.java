@@ -34,16 +34,16 @@ public class AnnonceDAO extends DAO<Annonce> {
     }
 
     @Override
-    public Annonce findById(int id) {
+    public Annonce findById(Long id) {
         String req = "SELECT * FROM annonce WHERE id = ?";
 
         try (PreparedStatement statement = con.prepareStatement(req)) {
-            statement.setInt(1, id);
+            statement.setLong(1, id);
             ResultSet rs = statement.executeQuery();
 
             if (rs.next()) {
                 Annonce annonce = new Annonce();
-                annonce.setId(rs.getInt("id"));
+                annonce.setId(rs.getLong("id"));
                 annonce.setTitle(rs.getString("title"));
                 annonce.setDescription(rs.getString("description"));
                 annonce.setAdress(rs.getString("adress"));
@@ -68,7 +68,7 @@ public class AnnonceDAO extends DAO<Annonce> {
 
             while (rs.next()) {
                 Annonce annonce = new Annonce();
-                annonce.setId(rs.getInt("id"));
+                annonce.setId(rs.getLong("id"));
                 annonce.setTitle(rs.getString("title"));
                 annonce.setDescription(rs.getString("description"));
                 annonce.setAdress(rs.getString("adress"));
@@ -96,7 +96,7 @@ public class AnnonceDAO extends DAO<Annonce> {
             statement.setString(4, obj.getMail());
             statement.setTimestamp(5, obj.getDate());
 
-            statement.setInt(6, obj.getId());
+            statement.setLong(6, obj.getId());
 
             return statement.executeUpdate() > 0;
         } catch (Exception e) {
@@ -105,11 +105,11 @@ public class AnnonceDAO extends DAO<Annonce> {
     }
 
     @Override
-    public boolean delete(int id) {
+    public boolean delete(Long id) {
         String req = "DELETE FROM annonce WHERE id = ?";
 
         try (PreparedStatement statement = con.prepareStatement(req)) {
-            statement.setInt(1, id);
+            statement.setLong(1, id);
             return statement.executeUpdate() > 0;
         } catch (SQLException e) {
             e.printStackTrace();

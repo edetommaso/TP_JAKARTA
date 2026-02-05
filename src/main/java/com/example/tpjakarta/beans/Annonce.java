@@ -1,61 +1,43 @@
 package com.example.tpjakarta.beans;
 
+import com.example.tpjakarta.utils.AnnonceStatus;
+import jakarta.persistence.*;
+import lombok.*;
 import java.sql.Timestamp;
 
+@Entity
+@Table(name = "annonce")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString
 public class Annonce {
 
-    private int id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(length = 64, nullable = false)
     private String title;
+
+    @Column(length = 256, nullable = false)
     private String description;
+
+    @Column(length = 64, nullable = false)
     private String adress;
+
+    @Column(length = 64, nullable = false)
     private String mail;
+
     private Timestamp date;
 
-    public String getDescription() {
-        return description;
-    }
+    private AnnonceStatus status;
 
-    public void setDescription(String description) {
-        this.description = description;
-    }
+    @ManyToOne
+    private User author;
 
-    public int getId() {
-        return id;
-    }
+    @ManyToOne
+    private Category category;
 
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public String getAdress() {
-        return adress;
-    }
-
-    public void setAdress(String adress) {
-        this.adress = adress;
-    }
-
-    public String getMail() {
-        return mail;
-    }
-
-    public void setMail(String mail) {
-        this.mail = mail;
-    }
-
-    public Timestamp getDate() {
-        return date;
-    }
-
-    public void setDate(Timestamp date) {
-        this.date = date;
-    }
 }

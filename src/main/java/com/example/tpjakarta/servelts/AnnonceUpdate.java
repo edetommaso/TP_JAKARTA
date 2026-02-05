@@ -20,7 +20,7 @@ public class AnnonceUpdate extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        int id = Integer.parseInt(request.getParameter("id"));
+        Long id = Long.parseLong(request.getParameter("id"));
         try (Connection connection = ConnectionDB.getInstance()) {
             AnnonceDAO annonceDAO = new AnnonceDAO(connection);
             Annonce annonce = annonceDAO.findById(id);
@@ -33,7 +33,7 @@ public class AnnonceUpdate extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        int id = Integer.parseInt(request.getParameter("id"));
+        Long id = Long.parseLong(request.getParameter("id"));
         String title = request.getParameter("title");
         String description = request.getParameter("description");
         String adress = request.getParameter("adress");

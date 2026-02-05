@@ -1,0 +1,7 @@
+FROM postgres:15-alpine
+
+ENV POSTGRES_USER=tp_jakarta
+ENV POSTGRES_PASSWORD=tp_jakarta
+ENV POSTGRES_DB=MasterAnnonce
+
+EXPOSE 5432

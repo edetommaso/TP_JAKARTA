@@ -12,11 +12,11 @@ public abstract class DAO<T> {
 
     public abstract boolean create(T obj);
 
-    public abstract T findById(int id);
+    public abstract T findById(Long id);
 
     public abstract List<T> findAll();
 
     public abstract boolean update(T obj);
 
-    public abstract boolean delete(int id);
+    public abstract boolean delete(Long id);
 }

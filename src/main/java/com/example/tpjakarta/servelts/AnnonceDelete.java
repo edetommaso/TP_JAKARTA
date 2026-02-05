@@ -16,7 +16,7 @@ import java.sql.SQLException;
 public class AnnonceDelete extends HttpServlet {
 
     public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        int id = Integer.parseInt(request.getParameter("id"));
+        Long id = Long.parseLong(request.getParameter("id"));
 
         try (Connection connection = ConnectionDB.getInstance()) {
             AnnonceDAO annonceDAO = new AnnonceDAO(connection);
