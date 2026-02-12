@@ -32,12 +32,15 @@ public class Annonce {
 
     private Timestamp date;
 
+    @Enumerated(EnumType.STRING)
     private AnnonceStatus status;
 
     @ManyToOne
+    @JoinColumn(name = "author_id", nullable = false)
     private User author;
 
     @ManyToOne
+    @JoinColumn(name = "category_id", nullable = true)
     private Category category;
 
 }

@@ -3,6 +3,9 @@ package com.example.tpjakarta.beans;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "category")
 @Getter
@@ -19,5 +22,7 @@ public class Category {
     @Column(unique = true, nullable = false)
     private String label;
 
-}
+    @OneToMany(mappedBy = "category", fetch = FetchType.LAZY)
+    private List<Annonce> annonces = new ArrayList<>();
 
+}
