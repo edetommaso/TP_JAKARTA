@@ -1,39 +1,92 @@
-# Projet MasterAnnonce - TP Jakarta EE
+# TP Jakarta EE - Gestion d'Annonces
 
-Ce projet est une refactorisation d'une application web Java EE initialement basée sur Servlets/JSP et JDBC. L'objectif de ce TP était de moderniser l'application en remplaçant la couche d'accès aux données par JPA/Hibernate et en structurant le code de manière plus robuste et maintenable.
+Ce projet est une application web RESTful réalisée dans le cadre du TP Jakarta EE. Elle permet la gestion d'annonces (CRUD, publication) avec une couche de sécurité et des règles métier avancées.
 
-## Architecture et Fonctionnalités
+## Fonctionnalités
 
-L'application permet de gérer des annonces, des catégories et des utilisateurs.
+- **API REST** avec JAX-RS (Jersey).
+- **Persistance** des données avec JPA (Hibernate)
+- **Sécurité Avancée** :
+  - Authentification par Token (Stateless).
+  - **Bonus JAAS** : Implémentation complète avec `LoginModule` custom (`DbLoginModule`, `TokenLoginModule`) et `Principals`.
+  - Contrôle d'accès bas sur les rôles (Auteur uniquement).
+  - Architecture sécurisée : Filtres JAX-RS + LoginContext JAAS.
+- **Règles métier** :
+  - Archivage obligatoire avant suppression (`DELETE` bloqué si non `ARCHIVED`).
+  - Immutabilité des annonces publiées (`UPDATE` bloqué si `PUBLISHED`).
+  - Gestion de la concurrence (`@Version`).
+- **Documentation API** : OpenAPI 3.0 / Swagger.
+- **Tests** :
+  - Unitaires (Mockito).
+  - Intégration (Jersey Test, H2 In-Memory).
+  - **Charge** : Plan de test JMeter fourni (`tests/load/load-test.jmx`).
+- **CI/CD** : Pipeline GitHub Actions.
 
-- **Modèle de données (Beans)** : Les entités `Annonce`, `Category`, et `User` sont mappées avec JPA.
-- **Couche d'accès aux données (Repositories)** : Le pattern DAO a été remplacé par une couche Repository utilisant JPA (`EntityManager`) pour toutes les opérations CRUD.
-- **Couche Service** : Une couche de service a été introduite pour contenir la logique métier (ex: publication d'une annonce).
-- **Couche Web (Servlets & JSP)** : L'interface utilisateur est gérée par des Servlets qui communiquent avec les repositories et des pages JSP qui utilisent JSTL pour l'affichage.
-- **Sécurité** : Un système d'authentification basé sur les sessions et un filtre de sécurité (`SecurityFilter`) protègent les ressources de l'application.
+## Exercices Réalisés
 
-### Fonctionnalités implémentées :
-- CRUD complet pour les Annonces, Catégories et Utilisateurs.
-- Système de connexion/déconnexion et d'inscription.
-- Un utilisateur ne peut modifier ou supprimer que ses propres annonces.
-- Seules les annonces avec le statut `PUBLISHED` sont visibles par tous. Les autres ne sont visibles que par leur auteur.
-- Base de données H2 persistante sur fichier, avec mise à jour automatique du schéma.
+1.  [x] Configuration JAX-RS.
+2.  [x] API REST Annonce (CRUD).
+3.  [x] Validation (Bean Validation).
+4.  [x] Gestion des Erreurs.
+5.  [x] Authentification Stateless (**+ Bonus JAAS**).
+6.  [x] Sécurité (`AuthenticationFilter` + JAAS).
+7.  [x] Règles Métier Avancées.
+8.  [x] Tests Unitaires.
+9.  [x] Tests d'Intégration.
+10. [x] Industrialisation (Swagger, CI/CD, **Load Test**).
 
-## Défi d'Environnement de Développement
+## Prérequis
 
-### Problème Rencontré
+- Java 21+
+- Maven 3.8+
+- Docker (optionnel pour PostgreSQL si configuré, ici H2 par défaut).
 
-Le développement de ce projet a été réalisé sur deux environnements distincts : le poste de l'IUT et un ordinateur personnel. Les configurations de bases de données entre ces deux machines n'étaient pas identiques (présence et configuration d'un serveur PostgreSQL sur une machine mais pas sur l'autre).
+## Démarrage
 
-Cette différence d'environnement a entraîné des difficultés et des erreurs récurrentes lors de l'initialisation de la connexion à la base de données (`PersistenceException`). Il était complexe de maintenir un workflow de développement fluide et de garantir que l'application puisse démarrer de manière fiable sur les deux postes.
+### 1. Cloner et Compiler
+```bash
+./mvnw clean package
+```
 
-### Solution Adoptée
+### 2. Lancer les Tests
+```bash
+./mvnw test
+```
 
-Pour résoudre ce problème de portabilité et de consistance, la décision a été prise d'abandonner la dépendance à un serveur de base de données externe comme PostgreSQL au profit d'une **base de données H2 en mode fichier**.
+### 3. Démarrer le Serveur (Tomcat via Cargo ou Plugin Maven)
+Si vous utilisez le plugin maven Tomcat (si configuré) ou déployez le WAR généré dans un Tomcat externe.
+*Note : Le projet génère un WAR dans `target/tp-jakarta-1.0-SNAPSHOT.war`.*
 
-Cette solution présente plusieurs avantages :
-- **Portabilité** : La base de données est contenue dans un fichier directement au sein du projet. Aucune installation ni configuration externe n'est requise.
-- **Simplicité** : Il suffit de lancer l'application pour que la base de données soit immédiatement disponible.
-- **Consistance** : L'environnement de base de données est strictement identique sur toutes les machines où le projet est cloné, éliminant les erreurs d'initialisation liées à la configuration.
+### 4. Accéder à l'API
+- Base URL : `http://localhost:8080/tp-jakarta/api`
+- Swagger OpenAPI : `http://localhost:8080/tp-jakarta/api/openapi.json`
 
-Ce choix a rendu le développement beaucoup plus simple et fiable entre les différents environnements.
+## Endpoints Principaux
+
+| Méthode | URI | Description | Auth Requise |
+|---|---|---|---|
+| POST | `/api/login` | S'authentifier (Username/Password) | Non |
+| GET | `/api/annonces` | Lister les annonces | Non (ou Oui selon config) |
+| POST | `/api/annonces` | Créer une annonce | Oui |
+| PUT | `/api/annonces/{id}` | Modifier une annonce | Oui (Auteur) |
+| DELETE | `/api/annonces/{id}` | Supprimer une annonce (doit être archivée) | Oui (Auteur) |
+| POST | `/api/annonces/{id}/archive` | Archiver une annonce | Oui (Auteur) |
+
+
+## Problèmes Rencontrés & Solutions
+
+1.  **Configuration Swagger & Context Path**
+    *   **Problème** : Erreur 404 lors des appels API depuis Swagger UI due à un chemin de contexte incorrect.
+    *   **Solution** : Configuration du déploiement à la racine (`<finalName>ROOT</finalName>`) et définition explicite de l'URL du serveur dans `@OpenAPIDefinition`.
+
+2.  **Authentification Swagger**
+    *   **Problème** : Impossibilité de tester les routes sécurisées via l'interface Swagger par défaut.
+    *   **Solution** : Ajout de la configuration `@SecurityScheme` (Type HTTP, Scheme Bearer, Format JWT) pour activer le bouton "Authorize".
+
+3.  **Intégration JAAS & JWT**
+    *   **Problème** : Difficulté à concilier l'authentification standard JAAS avec une architecture REST Stateless (Token).
+    *   **Solution** : Développement de modules JAAS personnalisés (`DbLoginModule` pour le login initial, `TokenLoginModule` pour la validation du token à chaque requête).
+
+4.  **Filtrage de Sécurité**
+    *   **Problème** : Le filtre de sécurité bloquait ou autorisait incorrectement certaines ressources.
+    *   **Solution** : Mise en place d'une liste blanche stricte pour les routes publiques (`/auth`, `/openapi`, `GET /annonces`) et validation des rôles via les `Principals` du `Subject` JAAS.

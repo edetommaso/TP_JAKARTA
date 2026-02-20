@@ -43,4 +43,7 @@ public class Annonce {
     @JoinColumn(name = "category_id", nullable = true)
     private Category category;
 
+    @Version
+    private Integer version;
+
 }

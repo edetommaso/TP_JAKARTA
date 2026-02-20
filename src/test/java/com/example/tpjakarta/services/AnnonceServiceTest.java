@@ -1,16 +1,22 @@
 package com.example.tpjakarta.services;
 
+import com.example.tpjakarta.api.dto.AnnonceCreateDTO;
+import com.example.tpjakarta.api.dto.AnnonceDTO;
 import com.example.tpjakarta.beans.Annonce;
+import com.example.tpjakarta.beans.Category;
 import com.example.tpjakarta.beans.User;
 import com.example.tpjakarta.repositories.AnnonceRepository;
+import com.example.tpjakarta.repositories.CategoryRepository;
+import com.example.tpjakarta.repositories.UserRepository;
 import com.example.tpjakarta.utils.AnnonceStatus;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -18,63 +24,88 @@ class AnnonceServiceTest {
 
     @Mock
     private AnnonceRepository annonceRepository;
+    @Mock
+    private CategoryRepository categoryRepository;
+    @Mock
+    private UserRepository userRepository;
 
-    @InjectMocks
     private AnnonceService annonceService;
 
-    @Test
-    void publishAnnonce_Success_WhenUserIsAuthor() {
-        // Arrange
-        User author = new User();
-        author.setId(1L);
-        author.setUsername("author");
-
-        Annonce annonce = new Annonce();
-        annonce.setAuthor(author);
-        annonce.setStatus(AnnonceStatus.DRAFT);
-
-        // Act
-        boolean result = annonceService.publishAnnonce(annonce, author);
-
-        // Assert
-        assertTrue(result, "Service should return true for successful publication");
-        assertEquals(AnnonceStatus.PUBLISHED, annonce.getStatus(), "Annonce status should be set to PUBLISHED");
-        verify(annonceRepository, times(1)).update(annonce); // Verify that the repository's update method was called once
+    @BeforeEach
+    void setUp() {
+        annonceService = new AnnonceService(annonceRepository, categoryRepository, userRepository);
     }
 
     @Test
-    void publishAnnonce_Failure_WhenUserIsNotAuthor() {
+    void create_ShouldCreateAnnonce_WhenValid() {
         // Arrange
+        Long userId = 1L;
+        AnnonceCreateDTO dto = AnnonceCreateDTO.builder()
+                .title("Test Title")
+                .description("Desc")
+                .adress("Paris")
+                .mail("test@test.com")
+                .build();
+        
         User author = new User();
-        author.setId(1L);
-
-        User anotherUser = new User();
-        anotherUser.setId(2L);
-
-        Annonce annonce = new Annonce();
-        annonce.setAuthor(author);
-        annonce.setStatus(AnnonceStatus.DRAFT);
-
+        author.setId(userId);
+        
+        when(userRepository.findById(userId)).thenReturn(author);
+        
         // Act
-        boolean result = annonceService.publishAnnonce(annonce, anotherUser);
+        AnnonceDTO result = annonceService.create(dto, userId);
 
         // Assert
-        assertFalse(result, "Service should return false when user is not the author");
-        assertEquals(AnnonceStatus.DRAFT, annonce.getStatus(), "Annonce status should remain DRAFT");
-        verify(annonceRepository, never()).update(annonce); // Verify that update was never called
+        assertNotNull(result);
+        assertEquals("Test Title", result.getTitle());
+        verify(annonceRepository).create(any(Annonce.class));
     }
 
     @Test
-    void publishAnnonce_Failure_WhenAnnonceIsNull() {
+    void update_ShouldThrowException_WhenAnnonceIsPublished() {
         // Arrange
-        User user = new User();
-        user.setId(1L);
+        Long annonceId = 1L;
+        Long userId = 1L;
+        
+        Annonce existing = new Annonce();
+        existing.setId(annonceId);
+        existing.setStatus(AnnonceStatus.PUBLISHED);
+        User author = new User();
+        author.setId(userId);
+        existing.setAuthor(author);
 
-        // Act
-        boolean result = annonceService.publishAnnonce(null, user);
+        when(annonceRepository.findById(annonceId)).thenReturn(existing);
 
-        // Assert
-        assertFalse(result);
-        verify(annonceRepository, never()).update(any(Annonce.class));
+        AnnonceCreateDTO dto = new AnnonceCreateDTO();
+
+        // Act & Assert
+        Exception exception = assertThrows(com.example.tpjakarta.api.exception.BusinessException.class, () -> {
+            annonceService.update(annonceId, dto, userId);
+        });
+        
+        assertEquals("Cannot modify a PUBLISHED annonce", exception.getMessage());
+    }
+
+    @Test
+    void delete_ShouldThrowException_WhenNotArchived() {
+        // Arrange
+        Long annonceId = 1L;
+        Long userId = 1L;
+        
+        Annonce existing = new Annonce();
+        existing.setId(annonceId);
+        existing.setStatus(AnnonceStatus.DRAFT); // Not ARCHIVED
+        User author = new User();
+        author.setId(userId);
+        existing.setAuthor(author);
+
+        when(annonceRepository.findById(annonceId)).thenReturn(existing);
+
+        // Act & Assert
+        Exception exception = assertThrows(com.example.tpjakarta.api.exception.BusinessException.class, () -> {
+            annonceService.delete(annonceId, userId);
+        });
+        
+        assertEquals("Annonce must be ARCHIVED before deletion", exception.getMessage());
     }
 }
