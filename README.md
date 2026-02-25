@@ -58,8 +58,8 @@ Si vous utilisez le plugin maven Tomcat (si configuré) ou déployez le WAR gén
 *Note : Le projet génère un WAR dans `target/tp-jakarta-1.0-SNAPSHOT.war`.*
 
 ### 4. Accéder à l'API
-- Base URL : `http://localhost:8080/tp-jakarta/api`
-- Swagger OpenAPI : `http://localhost:8080/tp-jakarta/api/openapi.json`
+- Base URL : `http://localhost:8080/api`
+- Swagger OpenAPI : `http://localhost:8080/api/openapi.json`
 
 ## Endpoints Principaux
 

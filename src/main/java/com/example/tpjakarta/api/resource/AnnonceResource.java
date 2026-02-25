@@ -2,35 +2,41 @@ package com.example.tpjakarta.api.resource;
 
 import com.example.tpjakarta.api.dto.AnnonceCreateDTO;
 import com.example.tpjakarta.api.dto.AnnonceDTO;
-import com.example.tpjakarta.beans.User;
+import com.example.tpjakarta.api.security.UserPrincipal;
 import com.example.tpjakarta.services.AnnonceService;
-import jakarta.ws.rs.*;
-import jakarta.ws.rs.core.Context;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.SecurityContext;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.net.URI;
+import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 
-@Path("/annonces")
-@Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
+@RestController
+@RequestMapping("/api/annonces")
 public class AnnonceResource {
 
     private final AnnonceService annonceService;
 
-    public AnnonceResource() {
-        this.annonceService = new AnnonceService();
+    @Autowired
+    public AnnonceResource(AnnonceService annonceService) {
+        this.annonceService = annonceService;
     }
 
-    private Long getAuthenticatedUserId(SecurityContext securityContext) {
-        if (securityContext != null && securityContext.getUserPrincipal() != null) {
+    private Long getAuthenticatedUserId(Principal principal) {
+        if (principal != null) {
+            // Spring Security might populate Principal as a UsernamePasswordAuthenticationToken
+            // or we might have UserPrincipal custom context if filter sets it.
+            // But normally, principal.getName() returns the username or id String.
+            // Based on previous code in UserPrincipal, name is the string version.
+            if (principal instanceof UserPrincipal) {
+                return ((UserPrincipal) principal).getUserId();
+            }
             try {
-                return Long.parseLong(securityContext.getUserPrincipal().getName());
+                return Long.parseLong(principal.getName());
             } catch (NumberFormatException e) {
                 return null;
             }
@@ -38,61 +44,57 @@ public class AnnonceResource {
         return null;
     }
 
-    @GET
-    public Response getAll(@QueryParam("page") @DefaultValue("1") int page,
-                           @QueryParam("size") @DefaultValue("10") int size) {
+    @GetMapping
+    public ResponseEntity<List<AnnonceDTO>> getAll(
+            @RequestParam(value = "page", defaultValue = "1") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
         List<AnnonceDTO> annonces = annonceService.findAll(page, size);
-        return Response.ok(annonces).build();
+        return ResponseEntity.ok(annonces);
     }
 
-    @GET
-    @Path("/{id}")
-    public Response getById(@PathParam("id") Long id) {
-        // Service throws ResourceNotFoundException if not found -> 404
+    @GetMapping("/{id}")
+    public ResponseEntity<AnnonceDTO> getById(@PathVariable("id") Long id) {
         AnnonceDTO annonce = annonceService.findById(id);
-        return Response.ok(annonce).build();
+        return ResponseEntity.ok(annonce);
     }
 
-    @POST
-    public Response create(@jakarta.validation.Valid AnnonceCreateDTO dto, @Context SecurityContext securityContext) {
-        Long userId = getAuthenticatedUserId(securityContext);
+    @PostMapping
+    public ResponseEntity<AnnonceDTO> create(@Valid @RequestBody AnnonceCreateDTO dto, Principal principal) {
+        Long userId = getAuthenticatedUserId(principal);
         if (userId == null) {
-            return Response.status(Response.Status.UNAUTHORIZED).build();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         AnnonceDTO created = annonceService.create(dto, userId);
-        return Response.created(URI.create("/api/annonces/" + created.getId())).entity(created).build();
+        return ResponseEntity.created(URI.create("/api/annonces/" + created.getId())).body(created);
     }
 
-    @PUT
-    @Path("/{id}")
-    public Response update(@PathParam("id") Long id, @jakarta.validation.Valid AnnonceCreateDTO dto, @Context SecurityContext securityContext) {
-        Long userId = getAuthenticatedUserId(securityContext);
+    @PutMapping("/{id}")
+    public ResponseEntity<AnnonceDTO> update(@PathVariable("id") Long id, @Valid @RequestBody AnnonceCreateDTO dto, Principal principal) {
+        Long userId = getAuthenticatedUserId(principal);
         if (userId == null) {
-            return Response.status(Response.Status.UNAUTHORIZED).build();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         AnnonceDTO updated = annonceService.update(id, dto, userId);
-        return Response.ok(updated).build();
+        return ResponseEntity.ok(updated);
     }
 
-    @DELETE
-    @Path("/{id}")
-    public Response delete(@PathParam("id") Long id, @Context SecurityContext securityContext) {
-        Long userId = getAuthenticatedUserId(securityContext);
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable("id") Long id, Principal principal) {
+        Long userId = getAuthenticatedUserId(principal);
         if (userId == null) {
-            return Response.status(Response.Status.UNAUTHORIZED).build();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         annonceService.delete(id, userId);
-        return Response.noContent().build();
+        return ResponseEntity.noContent().build();
     }
 
-    @PATCH
-    @Path("/{id}")
-    public Response patch(@PathParam("id") Long id, Map<String, Object> updates, @Context SecurityContext securityContext) {
-        Long userId = getAuthenticatedUserId(securityContext);
+    @PatchMapping("/{id}")
+    public ResponseEntity<AnnonceDTO> patch(@PathVariable("id") Long id, @RequestBody AnnonceCreateDTO updates, Principal principal) {
+        Long userId = getAuthenticatedUserId(principal);
         if (userId == null) {
-            return Response.status(Response.Status.UNAUTHORIZED).build();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         AnnonceDTO updated = annonceService.patch(id, updates, userId);
-        return Response.ok(updated).build();
+        return ResponseEntity.ok(updated);
     }
 }
