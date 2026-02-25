@@ -20,9 +20,14 @@ import java.util.List;
 import java.util.Map;
 import com.example.tpjakarta.utils.AnnonceStatus;
 import org.springframework.data.domain.Page;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api/annonces")
+@Tag(name = "Annonces", description = "Endpoints for managing Annonces")
 public class AnnonceResource {
 
     private final AnnonceService annonceService;
@@ -39,6 +44,7 @@ public class AnnonceResource {
         return null;
     }
 
+    @Operation(summary = "Get all annonces", description = "Retrieve a paginated and sortable list of annonces with dynamic filtering.")
     @GetMapping
     public ResponseEntity<Page<AnnonceDTO>> getAll(
             @RequestParam(value = "q", required = false) String q,
@@ -59,12 +65,22 @@ public class AnnonceResource {
         return ResponseEntity.ok(result);
     }
 
+    @Operation(summary = "Get an annonce by ID", description = "Retrieve a single annonce by its ID.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Annonce found"),
+        @ApiResponse(responseCode = "404", description = "Annonce not found")
+    })
     @GetMapping("/{id}")
     public ResponseEntity<AnnonceDTO> getById(@PathVariable("id") Long id) {
         AnnonceDTO annonce = annonceService.findById(id);
         return ResponseEntity.ok(annonce);
     }
 
+    @Operation(summary = "Create a new annonce", description = "Create a new annonce with provided details.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "Annonce created successfully"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
     @PostMapping
     public ResponseEntity<AnnonceDTO> create(@Valid @RequestBody AnnonceCreateDTO dto, @AuthenticationPrincipal CustomUserDetails userDetails) {
         Long userId = getAuthenticatedUserId(userDetails);
@@ -75,6 +91,13 @@ public class AnnonceResource {
         return ResponseEntity.created(URI.create("/api/annonces/" + created.getId())).body(created);
     }
 
+    @Operation(summary = "Update an annonce", description = "Replace an entire annonce details (Must be author, and not PUBLISHED).")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Annonce updated successfully"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(responseCode = "403", description = "Forbidden: Not the author"),
+        @ApiResponse(responseCode = "404", description = "Annonce not found")
+    })
     @PutMapping("/{id}")
     public ResponseEntity<AnnonceDTO> update(@PathVariable("id") Long id, @Valid @RequestBody AnnonceCreateDTO dto, @AuthenticationPrincipal CustomUserDetails userDetails) {
         Long userId = getAuthenticatedUserId(userDetails);
@@ -85,6 +108,13 @@ public class AnnonceResource {
         return ResponseEntity.ok(updated);
     }
 
+    @Operation(summary = "Delete an annonce", description = "Delete an annonce (Must be author and ARCHIVED).")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "204", description = "Annonce deleted successfully"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(responseCode = "403", description = "Forbidden: Not the author or not ARCHIVED"),
+        @ApiResponse(responseCode = "404", description = "Annonce not found")
+    })
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable("id") Long id, @AuthenticationPrincipal CustomUserDetails userDetails) {
         Long userId = getAuthenticatedUserId(userDetails);
@@ -95,6 +125,12 @@ public class AnnonceResource {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Partially update an annonce", description = "Patch an annonce (Must be author, and not PUBLISHED).")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Annonce patched successfully"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(responseCode = "403", description = "Forbidden: Not the author")
+    })
     @PatchMapping("/{id}")
     public ResponseEntity<AnnonceDTO> patch(@PathVariable("id") Long id, @RequestBody AnnonceCreateDTO updates, @AuthenticationPrincipal CustomUserDetails userDetails) {
         Long userId = getAuthenticatedUserId(userDetails);
@@ -105,6 +141,13 @@ public class AnnonceResource {
         return ResponseEntity.ok(updated);
     }
 
+    @Operation(summary = "Archive an annonce", description = "Archive an annonce (Must have ADMIN role).")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "204", description = "Annonce archived successfully"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized"),
+        @ApiResponse(responseCode = "403", description = "Forbidden: Requires ADMIN role"),
+        @ApiResponse(responseCode = "404", description = "Annonce not found")
+    })
     @PostMapping("/{id}/archive")
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> archive(@PathVariable("id") Long id, @AuthenticationPrincipal CustomUserDetails userDetails) {
