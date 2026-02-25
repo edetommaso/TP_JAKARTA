@@ -1,35 +1,13 @@
 package com.example.tpjakarta.repositories;
 
 import com.example.tpjakarta.beans.User;
-import jakarta.persistence.NoResultException;
-import jakarta.persistence.TypedQuery;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
-public class UserRepository extends BaseRepository<User> {
-    public UserRepository() {
-        super(User.class);
-    }
+import java.util.Optional;
 
-    public User findByUsername(String username) {
-        return executeInTransaction(entityManager -> {
-            try {
-                TypedQuery<User> query = entityManager.createQuery("SELECT u FROM User u WHERE u.username = :username", User.class);
-                query.setParameter("username", username);
-                return query.getSingleResult();
-            } catch (NoResultException e) {
-                return null;
-            }
-        });
-    }
-
-    public User findByEmail(String email) {
-        return executeInTransaction(entityManager -> {
-            try {
-                TypedQuery<User> query = entityManager.createQuery("SELECT u FROM User u WHERE u.email = :email", User.class);
-                query.setParameter("email", email);
-                return query.getSingleResult();
-            } catch (NoResultException e) {
-                return null;
-            }
-        });
-    }
+@Repository
+public interface UserRepository extends JpaRepository<User, Long> {
+    Optional<User> findByUsername(String username);
+    Optional<User> findByEmail(String email);
 }

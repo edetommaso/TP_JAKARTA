@@ -5,6 +5,7 @@ import com.example.tpjakarta.api.dto.AnnonceDTO;
 import com.example.tpjakarta.api.security.UserPrincipal;
 import com.example.tpjakarta.services.AnnonceService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,8 +13,12 @@ import jakarta.validation.Valid;
 
 import java.net.URI;
 import java.security.Principal;
+import java.sql.Timestamp;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import com.example.tpjakarta.utils.AnnonceStatus;
+import org.springframework.data.domain.Page;
 
 @RestController
 @RequestMapping("/api/annonces")
@@ -45,11 +50,23 @@ public class AnnonceResource {
     }
 
     @GetMapping
-    public ResponseEntity<List<AnnonceDTO>> getAll(
-            @RequestParam(value = "page", defaultValue = "1") int page,
+    public ResponseEntity<Page<AnnonceDTO>> getAll(
+            @RequestParam(value = "q", required = false) String q,
+            @RequestParam(value = "status", required = false) AnnonceStatus status,
+            @RequestParam(value = "categoryId", required = false) Long categoryId,
+            @RequestParam(value = "authorId", required = false) Long authorId,
+            @RequestParam(value = "fromDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date fromDate,
+            @RequestParam(value = "toDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) Date toDate,
+            @RequestParam(value = "sort", defaultValue = "date,desc") String sortRaw,
+            @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
-        List<AnnonceDTO> annonces = annonceService.findAll(page, size);
-        return ResponseEntity.ok(annonces);
+        
+        // Handling Timestamp conversions
+        Timestamp fromTs = fromDate != null ? new Timestamp(fromDate.getTime()) : null;
+        Timestamp toTs = toDate != null ? new Timestamp(toDate.getTime()) : null;
+
+        Page<AnnonceDTO> result = annonceService.searchDynamic(q, status, categoryId, authorId, fromTs, toTs, sortRaw, page, size);
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/{id}")

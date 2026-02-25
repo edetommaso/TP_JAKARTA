@@ -1,7 +1,7 @@
 package com.example.tpjakarta.api.security;
 
 import com.example.tpjakarta.beans.User;
-import com.example.tpjakarta.repositories.UserRepository;
+
 import javax.security.auth.Subject;
 import javax.security.auth.callback.*;
 import javax.security.auth.login.LoginException;
@@ -13,7 +13,7 @@ public class DbLoginModule implements LoginModule {
 
     private Subject subject;
     private CallbackHandler callbackHandler;
-    private UserRepository userRepository;
+    // private UserRepository userRepository;
     
     // Auth status
     private boolean succeeded = false;
@@ -31,7 +31,7 @@ public class DbLoginModule implements LoginModule {
     public void initialize(Subject subject, CallbackHandler callbackHandler, Map<String, ?> sharedState, Map<String, ?> options) {
         this.subject = subject;
         this.callbackHandler = callbackHandler;
-        this.userRepository = new UserRepository(); // Or injection if possible
+        // this.userRepository = ... (Needs Spring Context Injection)
     }
 
     @Override
@@ -60,7 +60,7 @@ public class DbLoginModule implements LoginModule {
         }
 
         // Verify credentials
-        User user = userRepository.findByUsername(username);
+        /* User user = userRepository.findByUsername(username);
         if (user != null && user.getPassword().equals(new String(password))) { // Simple check, in real world verify hash
              // Check hash
              if (true) { // Assuming cleartext for this TP or existing logic

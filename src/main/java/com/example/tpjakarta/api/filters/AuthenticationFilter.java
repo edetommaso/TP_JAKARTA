@@ -1,7 +1,7 @@
 package com.example.tpjakarta.api.filters;
 
 import com.example.tpjakarta.beans.User;
-import com.example.tpjakarta.repositories.UserRepository;
+
 import com.example.tpjakarta.services.TokenService;
 import com.example.tpjakarta.api.security.UserPrincipal;
 import jakarta.annotation.Priority;
@@ -26,7 +26,7 @@ public class AuthenticationFilter implements ContainerRequestFilter {
     private static final String AUTHENTICATION_SCHEME = "Bearer";
 
     private final TokenService tokenService = TokenService.getInstance();
-    private final UserRepository userRepository = new UserRepository();
+    // private final UserRepository userRepository;
 
     @Override
     public void filter(ContainerRequestContext requestContext) throws IOException {

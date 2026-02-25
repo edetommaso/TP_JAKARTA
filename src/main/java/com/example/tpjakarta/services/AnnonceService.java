@@ -7,8 +7,19 @@ import com.example.tpjakarta.beans.Annonce;
 import com.example.tpjakarta.beans.Category;
 import com.example.tpjakarta.beans.User;
 import com.example.tpjakarta.repositories.AnnonceRepository;
+import com.example.tpjakarta.repositories.CategoryRepository;
+import com.example.tpjakarta.repositories.UserRepository;
+import com.example.tpjakarta.repositories.AnnonceSpecifications;
 import com.example.tpjakarta.utils.AnnonceStatus;
+import com.example.tpjakarta.utils.ReflectionUtils;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+
+import java.sql.Timestamp;
 
 import java.util.List;
 import java.util.Map;
@@ -18,20 +29,13 @@ import java.util.stream.Collectors;
 public class AnnonceService {
 
     private final AnnonceRepository annonceRepository;
-    private final com.example.tpjakarta.repositories.CategoryRepository categoryRepository;
-    private final com.example.tpjakarta.repositories.UserRepository userRepository;
+    private final CategoryRepository categoryRepository;
+    private final UserRepository userRepository;
     private final AnnonceMapper annonceMapper;
 
-    public AnnonceService(AnnonceMapper annonceMapper) {
-        this.annonceRepository = new AnnonceRepository();
-        this.categoryRepository = new com.example.tpjakarta.repositories.CategoryRepository();
-        this.userRepository = new com.example.tpjakarta.repositories.UserRepository();
-        this.annonceMapper = annonceMapper;
-    }
-
     public AnnonceService(AnnonceRepository annonceRepository, 
-                          com.example.tpjakarta.repositories.CategoryRepository categoryRepository,
-                          com.example.tpjakarta.repositories.UserRepository userRepository,
+                          CategoryRepository categoryRepository,
+                          UserRepository userRepository,
                           AnnonceMapper annonceMapper) {
         this.annonceRepository = annonceRepository;
         this.categoryRepository = categoryRepository;
@@ -39,15 +43,30 @@ public class AnnonceService {
         this.annonceMapper = annonceMapper;
     }
 
-    public List<AnnonceDTO> findAll(int page, int size) {
-        List<Annonce> annonces = annonceRepository.search(null, null, AnnonceStatus.PUBLISHED, null, page, size);
-        return annonces.stream()
-                .map(annonceMapper::toDTO)
-                .collect(Collectors.toList());
+    public Page<AnnonceDTO> searchDynamic(String q, AnnonceStatus status, Long categoryId, Long authorId, Timestamp fromDate, Timestamp toDate, String sortRaw, int page, int size) {
+        // Introspection Constraint: Validate sort properties
+        Sort sort = Sort.unsorted();
+        if (sortRaw != null && !sortRaw.isEmpty()) {
+            String[] sortParams = sortRaw.split(",");
+            String sortField = sortParams[0];
+            String sortDirection = sortParams.length > 1 ? sortParams[1] : "asc";
+
+            if (ReflectionUtils.isValidAnnonceSortField(sortField)) {
+                sort = sortDirection.equalsIgnoreCase("desc") ? Sort.by(sortField).descending() : Sort.by(sortField).ascending();
+            } else {
+                throw new com.example.tpjakarta.api.exception.BusinessException("Invalid sort field: " + sortField);
+            }
+        }
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Specification<Annonce> spec = AnnonceSpecifications.search(q, status, categoryId, authorId, fromDate, toDate);
+
+        Page<Annonce> annonces = annonceRepository.findAll(spec, pageable);
+        return annonces.map(annonceMapper::toDTO);
     }
 
     public AnnonceDTO findById(Long id) {
-        Annonce annonce = annonceRepository.findById(id);
+        Annonce annonce = annonceRepository.findById(id).orElse(null);
         if (annonce == null) {
             throw new com.example.tpjakarta.api.exception.ResourceNotFoundException("Annonce not found with id " + id);
         }
@@ -55,7 +74,7 @@ public class AnnonceService {
     }
     
     public Annonce findEntityById(Long id) {
-        Annonce annonce = annonceRepository.findById(id);
+        Annonce annonce = annonceRepository.findById(id).orElse(null);
         if (annonce == null) {
             throw new com.example.tpjakarta.api.exception.ResourceNotFoundException("Annonce not found with id " + id);
         }
@@ -63,26 +82,26 @@ public class AnnonceService {
     }
 
     public AnnonceDTO create(AnnonceCreateDTO dto, Long userId) {
-        User author = userRepository.findById(userId);
+        User author = userRepository.findById(userId).orElse(null);
         if (author == null) {
             throw new com.example.tpjakarta.api.exception.ResourceNotFoundException("User not found with id " + userId);
         }
         
         Category category = null;
         if (dto.getCategoryId() != null) {
-            category = categoryRepository.findById(dto.getCategoryId());
+            category = categoryRepository.findById(dto.getCategoryId()).orElse(null);
             if (category == null) {
                  throw new com.example.tpjakarta.api.exception.ResourceNotFoundException("Category not found with id " + dto.getCategoryId());
             }
         }
 
         Annonce annonce = annonceMapper.toEntity(dto, author, category);
-        annonceRepository.create(annonce);
+        annonce = annonceRepository.save(annonce);
         return annonceMapper.toDTO(annonce);
     }
 
     public AnnonceDTO update(Long id, AnnonceCreateDTO dto, Long userId) {
-        Annonce existing = annonceRepository.findById(id);
+        Annonce existing = annonceRepository.findById(id).orElse(null);
         if (existing == null) {
             throw new com.example.tpjakarta.api.exception.ResourceNotFoundException("Annonce not found with id " + id);
         }
@@ -97,19 +116,19 @@ public class AnnonceService {
 
         Category category = existing.getCategory();
         if (dto.getCategoryId() != null) {
-            category = categoryRepository.findById(dto.getCategoryId());
+            category = categoryRepository.findById(dto.getCategoryId()).orElse(null);
             if (category == null) {
                  throw new com.example.tpjakarta.api.exception.ResourceNotFoundException("Category not found with id " + dto.getCategoryId());
             }
         }
 
         annonceMapper.updateEntity(existing, dto, category);
-        Annonce updated = annonceRepository.update(existing);
+        Annonce updated = annonceRepository.save(existing);
         return annonceMapper.toDTO(updated);
     }
     
     public void delete(Long id, Long userId) {
-        Annonce existing = annonceRepository.findById(id);
+        Annonce existing = annonceRepository.findById(id).orElse(null);
         if (existing == null) {
             throw new com.example.tpjakarta.api.exception.ResourceNotFoundException("Annonce not found with id " + id);
         }
@@ -122,11 +141,11 @@ public class AnnonceService {
             throw new com.example.tpjakarta.api.exception.BusinessException("Annonce must be ARCHIVED before deletion");
         }
         
-        annonceRepository.delete(id);
+        annonceRepository.deleteById(id);
     }
     
     public void archive(Long id, Long userId) {
-        Annonce existing = annonceRepository.findById(id);
+        Annonce existing = annonceRepository.findById(id).orElse(null);
         if (existing == null) {
             throw new com.example.tpjakarta.api.exception.ResourceNotFoundException("Annonce not found with id " + id);
         }
@@ -140,7 +159,7 @@ public class AnnonceService {
         }
         
         existing.setStatus(AnnonceStatus.ARCHIVED);
-        annonceRepository.update(existing);
+        annonceRepository.save(existing);
     }
 
     public void publishAnnonce(Annonce annonce, User currentUser) {
@@ -155,11 +174,11 @@ public class AnnonceService {
         }
         
         annonce.setStatus(AnnonceStatus.PUBLISHED);
-        annonceRepository.update(annonce);
+        annonceRepository.save(annonce);
     }
     
     public AnnonceDTO patch(Long id, AnnonceCreateDTO updates, Long userId) {
-        Annonce existing = annonceRepository.findById(id);
+        Annonce existing = annonceRepository.findById(id).orElse(null);
         if (existing == null) {
              throw new com.example.tpjakarta.api.exception.ResourceNotFoundException("Annonce not found with id " + id);
         }
@@ -174,7 +193,7 @@ public class AnnonceService {
 
         Category category = existing.getCategory();
         if (updates.getCategoryId() != null) {
-            category = categoryRepository.findById(updates.getCategoryId());
+            category = categoryRepository.findById(updates.getCategoryId()).orElse(null);
             if (category == null) {
                  throw new com.example.tpjakarta.api.exception.ResourceNotFoundException("Category not found with id " + updates.getCategoryId());
             }
@@ -182,7 +201,7 @@ public class AnnonceService {
 
         annonceMapper.updateEntity(existing, updates, category);
         
-        Annonce updated = annonceRepository.update(existing);
+        Annonce updated = annonceRepository.save(existing);
         return annonceMapper.toDTO(updated);
     }
 }

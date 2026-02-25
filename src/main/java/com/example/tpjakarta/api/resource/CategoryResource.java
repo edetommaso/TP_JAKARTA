@@ -3,44 +3,45 @@ package com.example.tpjakarta.api.resource;
 import com.example.tpjakarta.api.dto.CategoryDTO;
 import com.example.tpjakarta.beans.Category;
 import com.example.tpjakarta.repositories.CategoryRepository;
-import jakarta.annotation.security.RolesAllowed;
-import jakarta.ws.rs.*;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Path("/categories")
-@Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
+@RestController
+@RequestMapping("/api/categories")
 public class CategoryResource {
 
     private final CategoryRepository categoryRepository;
 
-    public CategoryResource() {
-        this.categoryRepository = new CategoryRepository();
+    @Autowired
+    public CategoryResource(CategoryRepository categoryRepository) {
+        this.categoryRepository = categoryRepository;
     }
 
-    @GET
-    public List<CategoryDTO> getAllCategories() {
-        return categoryRepository.findAll().stream()
+    @GetMapping
+    public ResponseEntity<List<CategoryDTO>> getAllCategories() {
+        List<CategoryDTO> categories = categoryRepository.findAll().stream()
                 .map(category -> new CategoryDTO(category.getId(), category.getLabel()))
                 .collect(Collectors.toList());
+        return ResponseEntity.ok(categories);
     }
 
-    @POST
-    // @RolesAllowed("USER") // Uncomment if we want to restrict creation
-    public Response createCategory(CategoryDTO categoryDTO) {
+    @PostMapping
+    public ResponseEntity<CategoryDTO> createCategory(@RequestBody CategoryDTO categoryDTO) {
         if (categoryDTO == null || categoryDTO.getLabel() == null) {
-            return Response.status(Response.Status.BAD_REQUEST).build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
         
         Category category = new Category();
         category.setLabel(categoryDTO.getLabel());
         
-        categoryRepository.create(category);
+        category = categoryRepository.save(category);
         
-        return Response.status(Response.Status.CREATED).entity(new CategoryDTO(category.getId(), category.getLabel())).build();
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new CategoryDTO(category.getId(), category.getLabel()));
     }
 }
