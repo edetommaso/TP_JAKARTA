@@ -104,4 +104,15 @@ public class AnnonceResource {
         AnnonceDTO updated = annonceService.patch(id, updates, userId);
         return ResponseEntity.ok(updated);
     }
+
+    @PostMapping("/{id}/archive")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> archive(@PathVariable("id") Long id, @AuthenticationPrincipal CustomUserDetails userDetails) {
+        Long userId = getAuthenticatedUserId(userDetails);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        annonceService.archive(id, userId);
+        return ResponseEntity.noContent().build();
+    }
 }

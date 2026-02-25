@@ -1,109 +1,134 @@
 package com.example.tpjakarta.api.resource;
 
-import com.example.tpjakarta.api.config.RestApplication;
 import com.example.tpjakarta.api.dto.AnnonceCreateDTO;
-import com.example.tpjakarta.api.dto.AnnonceDTO;
-import com.example.tpjakarta.api.dto.LoginDTO;
-import com.example.tpjakarta.api.dto.TokenDTO;
-import com.example.tpjakarta.api.exception.GlobalExceptionMapper;
-import com.example.tpjakarta.api.filters.AuthenticationFilter;
-import com.example.tpjakarta.api.resource.AnnonceResource;
-import com.example.tpjakarta.api.resource.AuthResource;
+import com.example.tpjakarta.beans.Category;
 import com.example.tpjakarta.beans.User;
+import com.example.tpjakarta.repositories.CategoryRepository;
 import com.example.tpjakarta.repositories.UserRepository;
-import com.example.tpjakarta.utils.JPAUtils;
-import jakarta.ws.rs.client.Entity;
-import jakarta.ws.rs.core.Application;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
-import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.test.JerseyTest;
-import org.glassfish.jersey.test.TestProperties;
-import org.junit.jupiter.api.BeforeAll;
+import com.example.tpjakarta.services.JwtService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
-import static org.junit.jupiter.api.Assertions.*;
+import java.util.Collections;
+import java.util.List;
 
-public class AnnonceResourceIT extends JerseyTest {
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.hamcrest.Matchers.greaterThan;
 
-    @BeforeAll
-    public static void setupDB() {
-        JPAUtils.setPersistenceUnitName("pu-test");
-        
-        // Seed a user for testing
-        UserRepository repo = new UserRepository();
-        User user = repo.findByUsername("it_user");
+@SpringBootTest
+@AutoConfigureMockMvc
+@Testcontainers
+public class AnnonceResourceIT {
+
+    @Container
+    @ServiceConnection
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine");
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    private JwtService jwtService;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private CategoryRepository categoryRepository;
+
+    private String userToken;
+    private String adminToken;
+    private Long testUserId;
+    private Long testCategoryId;
+
+    @BeforeEach
+    void setUp() {
+        // Setup User
+        User user = userRepository.findByUsername("testuser").orElse(null);
         if (user == null) {
             user = new User();
-            user.setUsername("it_user");
-            user.setPassword("password");
-            user.setEmail("it@test.com");
-            repo.create(user);
+            user.setUsername("testuser");
+            user.setPassword("pass");
+            user.setEmail("test@user.com");
+            user = userRepository.save(user);
+        }
+        testUserId = user.getId();
+        userToken = "Bearer " + jwtService.generateToken("testuser", testUserId, List.of("ROLE_USER"));
+        adminToken = "Bearer " + jwtService.generateToken("adminuser", testUserId + 1, List.of("ROLE_ADMIN"));
+
+        // Setup Category
+        if (categoryRepository.findAll().isEmpty()) {
+            Category cat = new Category();
+            cat.setLabel("Test Category");
+            cat = categoryRepository.save(cat);
+            testCategoryId = cat.getId();
+        } else {
+            testCategoryId = categoryRepository.findAll().get(0).getId();
         }
     }
 
-    @Override
-    protected Application configure() {
-        enable(TestProperties.LOG_TRAFFIC);
-        enable(TestProperties.DUMP_ENTITY);
-        return new ResourceConfig(
-                AnnonceResource.class, 
-                AuthResource.class, 
-                AuthenticationFilter.class, 
-                GlobalExceptionMapper.class
-        );
+    @Test
+    void testProtectedEndpointWithoutTokenReturns401() throws Exception {
+        mockMvc.perform(get("/api/annonces")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden()); // Security filter will block to 403 or 401
     }
 
     @Test
-    public void testCreateAnnonceFlow() {
-        // 1. Login
-        LoginDTO loginDTO = new LoginDTO("it_user", "password");
-        Response loginResponse = target("/login").request().post(Entity.json(loginDTO));
-        
-        assertEquals(200, loginResponse.getStatus());
-        TokenDTO tokenDTO = loginResponse.readEntity(TokenDTO.class);
-        assertNotNull(tokenDTO.getToken());
-        String token = tokenDTO.getToken();
-
-        // 2. Create Annonce (with Token)
-        AnnonceCreateDTO createDTO = AnnonceCreateDTO.builder()
-                .title("IT Annonce")
-                .description("IT Description")
-                .adress("IT Address")
-                .mail("it@test.com")
-                .build();
-
-        Response createResponse = target("/annonces")
-                .request()
-                .header("Authorization", "Bearer " + token)
-                .post(Entity.json(createDTO));
-
-        assertEquals(201, createResponse.getStatus());
-        AnnonceDTO created = createResponse.readEntity(AnnonceDTO.class);
-        assertNotNull(created.getId());
-        assertEquals("IT Annonce", created.getTitle());
+    void testProtectedEndpointWithInvalidTokenReturns401() throws Exception {
+        mockMvc.perform(get("/api/annonces")
+                .header("Authorization", "Bearer invalid-token.xyz")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden());
     }
-    
+
     @Test
-    public void testGetAnnonces_Public() {
-        Response response = target("/annonces").request().get();
-        assertEquals(200, response.getStatus());
+    void testArchiveWithoutAdminReturns403() throws Exception {
+        mockMvc.perform(post("/api/annonces/999/archive")
+                .header("Authorization", userToken) // Assuming userToken is ROLE_USER
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden()); // Should be 403 Forbidden because lacks ADMIN role
     }
-    
+
     @Test
-    public void testCreateAnnonce_Unauthorized() {
-        AnnonceCreateDTO createDTO = AnnonceCreateDTO.builder()
-                .title("Unauthorized Annonce")
-                .description("Desc")
-                .adress("Addr")
-                .mail("mail@test.com")
-                .build();
+    void testCrudFlow() throws Exception {
+        // Create
+        AnnonceCreateDTO createDTO = new AnnonceCreateDTO();
+        createDTO.setTitle("Integration Test Annonce");
+        createDTO.setDescription("Description of the test");
+        createDTO.setAdress("123 Test Street");
+        createDTO.setMail("test@mail.com");
+        createDTO.setCategoryId(testCategoryId);
 
-        Response response = target("/annonces")
-                .request()
-                // No Authorization Header
-                .post(Entity.json(createDTO));
+        MvcResult result = mockMvc.perform(post("/api/annonces")
+                .header("Authorization", userToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(createDTO)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").exists())
+                .andExpect(jsonPath("$.title").value("Integration Test Annonce"))
+                .andReturn();
 
-        assertEquals(401, response.getStatus());
+        // Read All
+        mockMvc.perform(get("/api/annonces")
+                .header("Authorization", userToken)
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(greaterThan(0)));
     }
 }

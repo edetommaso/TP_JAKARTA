@@ -24,6 +24,7 @@ import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @Service
 public class AnnonceService {
@@ -144,15 +145,14 @@ public class AnnonceService {
         annonceRepository.deleteById(id);
     }
     
+    @PreAuthorize("hasRole('ADMIN')")
     public void archive(Long id, Long userId) {
         Annonce existing = annonceRepository.findById(id).orElse(null);
         if (existing == null) {
             throw new com.example.tpjakarta.api.exception.ResourceNotFoundException("Annonce not found with id " + id);
         }
         
-        if (!existing.getAuthor().getId().equals(userId)) {
-             throw new SecurityException("You can only archive your own annonces");
-        }
+        // Removed author check because Business Rule states: "seul un ADMIN peut archiver"
         
         if (existing.getStatus() == AnnonceStatus.ARCHIVED) {
             return;

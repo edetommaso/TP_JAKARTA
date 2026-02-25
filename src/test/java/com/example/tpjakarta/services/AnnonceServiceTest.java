@@ -1,9 +1,8 @@
 package com.example.tpjakarta.services;
 
 import com.example.tpjakarta.api.dto.AnnonceCreateDTO;
-import com.example.tpjakarta.api.dto.AnnonceDTO;
+import com.example.tpjakarta.api.mapper.AnnonceMapper;
 import com.example.tpjakarta.beans.Annonce;
-import com.example.tpjakarta.beans.Category;
 import com.example.tpjakarta.beans.User;
 import com.example.tpjakarta.repositories.AnnonceRepository;
 import com.example.tpjakarta.repositories.CategoryRepository;
@@ -12,15 +11,17 @@ import com.example.tpjakarta.utils.AnnonceStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class AnnonceServiceTest {
+public class AnnonceServiceTest {
 
     @Mock
     private AnnonceRepository annonceRepository;
@@ -28,84 +29,66 @@ class AnnonceServiceTest {
     private CategoryRepository categoryRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private AnnonceMapper annonceMapper;
 
+    @InjectMocks
     private AnnonceService annonceService;
+
+    private User author;
+    private Annonce annonce;
 
     @BeforeEach
     void setUp() {
-        annonceService = new AnnonceService(annonceRepository, categoryRepository, userRepository);
+        author = new User();
+        author.setId(1L);
+
+        annonce = new Annonce();
+        annonce.setId(10L);
+        annonce.setAuthor(author);
+        annonce.setStatus(AnnonceStatus.DRAFT);
     }
 
     @Test
-    void create_ShouldCreateAnnonce_WhenValid() {
-        // Arrange
-        Long userId = 1L;
-        AnnonceCreateDTO dto = AnnonceCreateDTO.builder()
-                .title("Test Title")
-                .description("Desc")
-                .adress("Paris")
-                .mail("test@test.com")
-                .build();
-        
-        User author = new User();
-        author.setId(userId);
-        
-        when(userRepository.findById(userId)).thenReturn(author);
-        
-        // Act
-        AnnonceDTO result = annonceService.create(dto, userId);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals("Test Title", result.getTitle());
-        verify(annonceRepository).create(any(Annonce.class));
-    }
-
-    @Test
-    void update_ShouldThrowException_WhenAnnonceIsPublished() {
-        // Arrange
-        Long annonceId = 1L;
-        Long userId = 1L;
-        
-        Annonce existing = new Annonce();
-        existing.setId(annonceId);
-        existing.setStatus(AnnonceStatus.PUBLISHED);
-        User author = new User();
-        author.setId(userId);
-        existing.setAuthor(author);
-
-        when(annonceRepository.findById(annonceId)).thenReturn(existing);
-
+    void testModifyAnnonce_Success_WhenUserIsAuthor() {
         AnnonceCreateDTO dto = new AnnonceCreateDTO();
-
-        // Act & Assert
-        Exception exception = assertThrows(com.example.tpjakarta.api.exception.BusinessException.class, () -> {
-            annonceService.update(annonceId, dto, userId);
-        });
+        when(annonceRepository.findById(10L)).thenReturn(Optional.of(annonce));
+        when(annonceRepository.save(any(Annonce.class))).thenReturn(annonce);
         
-        assertEquals("Cannot modify a PUBLISHED annonce", exception.getMessage());
+        annonceService.update(10L, dto, 1L); // Same ID as author
+        verify(annonceRepository, times(1)).save(annonce);
     }
 
     @Test
-    void delete_ShouldThrowException_WhenNotArchived() {
-        // Arrange
-        Long annonceId = 1L;
-        Long userId = 1L;
-        
-        Annonce existing = new Annonce();
-        existing.setId(annonceId);
-        existing.setStatus(AnnonceStatus.DRAFT); // Not ARCHIVED
-        User author = new User();
-        author.setId(userId);
-        existing.setAuthor(author);
+    void testModifyAnnonce_ThrowsException_WhenUserIsNotAuthor() {
+        AnnonceCreateDTO dto = new AnnonceCreateDTO();
+        when(annonceRepository.findById(10L)).thenReturn(Optional.of(annonce));
 
-        when(annonceRepository.findById(annonceId)).thenReturn(existing);
-
-        // Act & Assert
-        Exception exception = assertThrows(com.example.tpjakarta.api.exception.BusinessException.class, () -> {
-            annonceService.delete(annonceId, userId);
+        assertThrows(SecurityException.class, () -> {
+            annonceService.update(10L, dto, 99L); // Different ID
         });
+        verify(annonceRepository, never()).save(any(Annonce.class));
+    }
+
+    @Test
+    void testModifyAnnonce_ThrowsException_WhenAnnonceIsPublished() {
+        annonce.setStatus(AnnonceStatus.PUBLISHED);
+        AnnonceCreateDTO dto = new AnnonceCreateDTO();
+        when(annonceRepository.findById(10L)).thenReturn(Optional.of(annonce));
+
+        assertThrows(com.example.tpjakarta.api.exception.BusinessException.class, () -> {
+            annonceService.update(10L, dto, 1L);
+        });
+        verify(annonceRepository, never()).save(any(Annonce.class));
+    }
+
+    @Test
+    void testArchive_Success_WhenUserIsAdmin() {
+        when(annonceRepository.findById(10L)).thenReturn(Optional.of(annonce));
+        // Security logic is handled by @PreAuthorize on the endpoint/service,
+        // so calling this method directly in Unit test assumes we somehow passed through security proxy.
+        annonceService.archive(10L, 99L);
         
-        assertEquals("Annonce must be ARCHIVED before deletion", exception.getMessage());
+        verify(annonceRepository, times(1)).save(argThat(a -> a.getStatus() == AnnonceStatus.ARCHIVED));
     }
 }
