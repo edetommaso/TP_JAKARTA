@@ -9,10 +9,11 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.example.tpjakarta.api.security.CustomUserDetails;
 import jakarta.validation.Valid;
 
 import java.net.URI;
-import java.security.Principal;
 import java.sql.Timestamp;
 import java.util.Date;
 import java.util.List;
@@ -31,20 +32,9 @@ public class AnnonceResource {
         this.annonceService = annonceService;
     }
 
-    private Long getAuthenticatedUserId(Principal principal) {
-        if (principal != null) {
-            // Spring Security might populate Principal as a UsernamePasswordAuthenticationToken
-            // or we might have UserPrincipal custom context if filter sets it.
-            // But normally, principal.getName() returns the username or id String.
-            // Based on previous code in UserPrincipal, name is the string version.
-            if (principal instanceof UserPrincipal) {
-                return ((UserPrincipal) principal).getUserId();
-            }
-            try {
-                return Long.parseLong(principal.getName());
-            } catch (NumberFormatException e) {
-                return null;
-            }
+    private Long getAuthenticatedUserId(CustomUserDetails userDetails) {
+        if (userDetails != null) {
+            return userDetails.getUserId();
         }
         return null;
     }
@@ -76,8 +66,8 @@ public class AnnonceResource {
     }
 
     @PostMapping
-    public ResponseEntity<AnnonceDTO> create(@Valid @RequestBody AnnonceCreateDTO dto, Principal principal) {
-        Long userId = getAuthenticatedUserId(principal);
+    public ResponseEntity<AnnonceDTO> create(@Valid @RequestBody AnnonceCreateDTO dto, @AuthenticationPrincipal CustomUserDetails userDetails) {
+        Long userId = getAuthenticatedUserId(userDetails);
         if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -86,8 +76,8 @@ public class AnnonceResource {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<AnnonceDTO> update(@PathVariable("id") Long id, @Valid @RequestBody AnnonceCreateDTO dto, Principal principal) {
-        Long userId = getAuthenticatedUserId(principal);
+    public ResponseEntity<AnnonceDTO> update(@PathVariable("id") Long id, @Valid @RequestBody AnnonceCreateDTO dto, @AuthenticationPrincipal CustomUserDetails userDetails) {
+        Long userId = getAuthenticatedUserId(userDetails);
         if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -96,8 +86,8 @@ public class AnnonceResource {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable("id") Long id, Principal principal) {
-        Long userId = getAuthenticatedUserId(principal);
+    public ResponseEntity<Void> delete(@PathVariable("id") Long id, @AuthenticationPrincipal CustomUserDetails userDetails) {
+        Long userId = getAuthenticatedUserId(userDetails);
         if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -106,8 +96,8 @@ public class AnnonceResource {
     }
 
     @PatchMapping("/{id}")
-    public ResponseEntity<AnnonceDTO> patch(@PathVariable("id") Long id, @RequestBody AnnonceCreateDTO updates, Principal principal) {
-        Long userId = getAuthenticatedUserId(principal);
+    public ResponseEntity<AnnonceDTO> patch(@PathVariable("id") Long id, @RequestBody AnnonceCreateDTO updates, @AuthenticationPrincipal CustomUserDetails userDetails) {
+        Long userId = getAuthenticatedUserId(userDetails);
         if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
