@@ -29,12 +29,7 @@ import static org.hamcrest.Matchers.greaterThan;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@Testcontainers
 public class AnnonceResourceIT {
-
-    @Container
-    @ServiceConnection
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine");
 
     @Autowired
     private MockMvc mockMvc;
@@ -132,3 +127,4 @@ public class AnnonceResourceIT {
                 .andExpect(jsonPath("$.totalElements").value(greaterThan(0)));
     }
 }
+

@@ -5,15 +5,20 @@ import com.example.tpjakarta.api.exception.BusinessException;
 import com.example.tpjakarta.beans.User;
 import com.example.tpjakarta.repositories.UserRepository;
 
+import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+
 import java.sql.Timestamp;
 import java.time.Instant;
 
+@Service
 public class UserService {
 
     private final UserRepository userRepository;
 
-    public UserService() {
-        this.userRepository = new UserRepository();
+    @Autowired
+    public UserService(UserRepository userRepository) {
+        this.userRepository = userRepository;
     }
 
     public void register(RegisterDTO registerDTO) {
@@ -21,11 +26,11 @@ public class UserService {
             throw new BusinessException("Registration data is required");
         }
         
-        if (userRepository.findByUsername(registerDTO.getUsername()) != null) {
+        if (userRepository.findByUsername(registerDTO.getUsername()).isPresent()) {
             throw new BusinessException("Username already exists");
         }
         
-        if (userRepository.findByEmail(registerDTO.getEmail()) != null) {
+        if (userRepository.findByEmail(registerDTO.getEmail()).isPresent()) {
             throw new BusinessException("Email already exists");
         }
         
@@ -35,6 +40,6 @@ public class UserService {
         user.setPassword(registerDTO.getPassword()); // Plain text as per DbLoginModule
         user.setCreatedAt(Timestamp.from(Instant.now()));
         
-        userRepository.create(user);
+        userRepository.save(user);
     }
 }

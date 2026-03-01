@@ -8,11 +8,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/categories")
+@Tag(name = "Catégories", description = "Gestion des types d'annonces")
 public class CategoryResource {
 
     private final CategoryRepository categoryRepository;
@@ -35,12 +37,12 @@ public class CategoryResource {
         if (categoryDTO == null || categoryDTO.getLabel() == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
-        
+
         Category category = new Category();
         category.setLabel(categoryDTO.getLabel());
-        
+
         category = categoryRepository.save(category);
-        
+
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new CategoryDTO(category.getId(), category.getLabel()));
     }

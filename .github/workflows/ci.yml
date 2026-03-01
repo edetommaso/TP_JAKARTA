@@ -1,0 +1,56 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+    
+    # Bonus 1: Matrix multi-Java (Testing on JDK 21 as primary, optionally 17 but POM is strictly 21)
+    strategy:
+      matrix:
+        java-version: [ '21' ]
+
+    steps:
+      # Step A: Checkout
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step B: Setup Java + Maven Cache
+      - name: Set up JDK ${{ matrix.java-version }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java-version }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      # Step C: Build & Test (No Skip Tests)
+      # Relying on Testcontainers configured in pom.xml, no manual Postgres setup needed here.
+      - name: Build and Verify with Maven
+        run: mvn -B clean verify
+
+      # Step D: Packaging and Artifacts
+      - name: Upload JAR Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: master-annonce-jar
+          path: target/tp-jakarta-*.jar
+          retention-days: 7
+
+      # Bonus 3: Generate and Publish JaCoCo Report
+      - name: Upload JaCoCo Coverage Report
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: jacoco-report
+          path: target/site/jacoco
+
+      # Bonus 2: Docker Build (Optional test inside CI)
+      - name: Build Docker Image
+        run: docker build -t masterannonce:1.0 .

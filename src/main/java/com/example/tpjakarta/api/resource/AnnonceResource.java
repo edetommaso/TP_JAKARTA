@@ -2,7 +2,6 @@ package com.example.tpjakarta.api.resource;
 
 import com.example.tpjakarta.api.dto.AnnonceCreateDTO;
 import com.example.tpjakarta.api.dto.AnnonceDTO;
-import com.example.tpjakarta.api.security.UserPrincipal;
 import com.example.tpjakarta.services.AnnonceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;

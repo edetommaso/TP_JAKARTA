@@ -3,9 +3,9 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/tpjakarta
-    username: eric
-    password: eric
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/jakartaee}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:password}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -21,3 +21,12 @@ management:
     web:
       exposure:
         include: health,info,prometheus,beans
+  endpoint:
+    health:
+      show-details: "always"
+
+info:
+  app:
+    name: "Master Annonce Spring Boot API"
+    description: "API de gestion d'annonces migrée de Jakarta EE vers Spring Boot"
+    version: "1.0.0"

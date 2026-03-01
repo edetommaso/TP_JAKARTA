@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-configmap
+data:
+  SPRING_PROFILES_ACTIVE: "prod"
+  # Point to the Kubernetes internally resolvable database service name "postgres-service"
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres-service:5432/jakartaee"
+  POSTGRES_DB: "jakartaee"

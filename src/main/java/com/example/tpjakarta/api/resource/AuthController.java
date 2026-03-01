@@ -9,18 +9,24 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import java.sql.Timestamp;
 import java.util.Collections;
 
 @RestController
 @RequestMapping("/api/auth")
+@Tag(name = "Authentification", description = "Gestion de l'inscription et de la connexion")
 public class AuthController { // Renamed from AuthResource
 
     private final UserRepository userRepository;
     private final JwtService jwtService;
+    private final PasswordEncoder passwordEncoder;
 
-    public AuthController(UserRepository userRepository, JwtService jwtService) {
+    public AuthController(UserRepository userRepository, JwtService jwtService, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.jwtService = jwtService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @PostMapping("/login")
@@ -36,8 +42,8 @@ public class AuthController { // Renamed from AuthResource
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
         }
 
-        // 2. Validate password (in a real app, use PasswordEncoder.matches())
-        if (!user.getPassword().equals(loginDTO.getPassword())) {
+        // 2. Validate password with PasswordEncoder
+        if (!passwordEncoder.matches(loginDTO.getPassword(), user.getPassword())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
         }
 
@@ -51,11 +57,32 @@ public class AuthController { // Renamed from AuthResource
         return ResponseEntity.ok(new TokenDTO(token));
     }
 
-    // Keeping register just to match previous layout
     @PostMapping("/register")
-    public ResponseEntity<Void> register(@RequestBody com.example.tpjakarta.api.dto.RegisterDTO registerDTO) {
-        // Normally this goes to a UserService, this dummy implementation skips for brevity on Exercise 4
-        // which focuses strictly on /api/auth/login and JWT generation.
+    public ResponseEntity<?> register(@RequestBody com.example.tpjakarta.api.dto.RegisterDTO registerDTO) {
+        if (registerDTO == null || registerDTO.getUsername() == null || registerDTO.getEmail() == null
+                || registerDTO.getPassword() == null) {
+            return ResponseEntity.badRequest().body("Username, email and password are required");
+        }
+
+        // 1. Check if username exists
+        if (userRepository.findByUsername(registerDTO.getUsername()).isPresent()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Username already taken");
+        }
+
+        // 2. Check if email exists
+        if (userRepository.findByEmail(registerDTO.getEmail()).isPresent()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Email already taken");
+        }
+
+        // 3. Create and Save User
+        User user = new User();
+        user.setUsername(registerDTO.getUsername());
+        user.setEmail(registerDTO.getEmail());
+        user.setPassword(passwordEncoder.encode(registerDTO.getPassword()));
+        user.setCreatedAt(new Timestamp(System.currentTimeMillis()));
+
+        userRepository.save(user);
+
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 }
