@@ -1,0 +1,12 @@
+[ {
+  "index" : 0,
+  "timestamp" : "2026-03-02T00:50:40.131714900Z",
+  "data" : "Genesis Block - Billetterie",
+  "previousHash" : "0",
+  "hash" : "00738b16bf85ad4fdb9e64c3ba932d5da9b080c3e38621d5bbc579f804bd9208",
+  "nonce" : 24,
+  "eventId" : null,
+  "artist" : null,
+  "status" : null,
+  "owner" : null
+} ]
